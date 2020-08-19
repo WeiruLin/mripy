@@ -1585,6 +1585,15 @@ def apply_ants(transforms, base_file, in_file, out_file, interp=None, dim=None, 
 
 
 def ants2afni_affine(ants_affine, afni_affine):
+    '''
+    Parameters
+    ----------
+    ants_affine : str, the affine transformation file created by ANTs
+        usually as "*_0GenericAffine.mat".
+    afni_affine : str
+        name of the output file, such as "*_0GenericAffine.1D"
+    '''
+    
     data = scio.loadmat(ants_affine)
 
     if 'AffineTransform_float_3_3' in data.keys():
@@ -1599,9 +1608,27 @@ def ants2afni_affine(ants_affine, afni_affine):
     np.savetxt(afni_affine, afni_mat, delimiter='\t')
 
 
-def afni2ants_affine(afni_affine, ants_affine):
-    raise NotImplementedError
-
+def afni2ants_affine(afni_affine, ants_affine, centermass):
+    '''
+    Parameters
+    ----------
+    afni_affine : str, the affine transformation file created by afni
+        usually as "*aff12.1D".
+    ants_affine : str
+        name of the output file, such as "*Affine.mat"
+    centermass : str, mass center of base dataset, could be obtained by "3dCM base.nii > centermass.1D"
+    '''
+    afni_mat = np.loadtxt(afni_affine)
+    center = np.loadtxt(centermass).reshape((3,1))
+    if max(afni_mat.shape) == 12:
+        afni_mat = afni_mat.reshape((3, 4))
+    vector = afni_mat[:, 3][:, np.newaxis] - center + np.dot(afni_mat[0:3, 0:3], center)
+    ants_mat = np.concatenate((afni_mat[0:3, 0:3].reshape((9, 1)), vector), axis=0)
+    data = dict()
+    data['AffineTransform_double_3_3'] = ants_mat
+    data['fixed'] = center
+    scio.savemat(ants_affine, data)
+                  
 
 def ants2afni_warp(ants_warp, afni_warp):
     raise NotImplementedError
