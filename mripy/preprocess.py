@@ -9,6 +9,7 @@ import numpy as np
 from numpy.polynomial import polynomial
 from scipy import stats
 from scipy.ndimage import interpolation
+import scipy.io as scio
 from sklearn import mixture
 try:
     import pandas as pd
@@ -1584,7 +1585,18 @@ def apply_ants(transforms, base_file, in_file, out_file, interp=None, dim=None, 
 
 
 def ants2afni_affine(ants_affine, afni_affine):
-    raise NotImplementedError
+    data = scio.loadmat(ants_affine)
+
+    if 'AffineTransform_float_3_3' in data.keys():
+        ants_key = 'AffineTransform_float_3_3'
+    else:
+        ants_key = 'AffineTransform_double_3_3'
+    ants_mat = np.concatenate((data[ants_key][0:9].reshape((3,3)), data[ants_key][9:12]), axis=1)
+    center = data['fixed']
+    vector = np.dot(ants_mat[0:3,0:3],-center) + ants_mat[:,3][:,np.newaxis] + center
+    afni_mat = np.concatenate((ants_mat[0:3,0:3], vector), axis=1)
+
+    np.savetxt(afni_affine, afni_mat, delimiter='\t')
 
 
 def afni2ants_affine(afni_affine, ants_affine):
